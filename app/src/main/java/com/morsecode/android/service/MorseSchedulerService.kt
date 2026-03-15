@@ -112,14 +112,21 @@ class MorseSchedulerService : Service() {
         val cal = Calendar.getInstance()
         val currentMinute = cal.get(Calendar.MINUTE)
 
-        // 计算下一个整点/半点/刻钟
+        // 计算下一个整点/半点/刻钟时刻
+        // 例如：interval=15 时，播报时刻为 :00, :15, :30, :45
+        // interval=30 时，播报时刻为 :00, :30
+        // interval=60 时，播报时刻为 :00（整点）
         val nextMinute = ((currentMinute / intervalMinutes) + 1) * intervalMinutes
-        cal.set(Calendar.MINUTE, nextMinute % 60)
+
+        // 如果超过60分钟，进位到下一小时
+        if (nextMinute >= 60) {
+            cal.add(Calendar.HOUR_OF_DAY, 1)
+            cal.set(Calendar.MINUTE, 0)
+        } else {
+            cal.set(Calendar.MINUTE, nextMinute)
+        }
         cal.set(Calendar.SECOND, 0)
         cal.set(Calendar.MILLISECOND, 0)
-        if (nextMinute >= 60) {
-            cal.add(Calendar.HOUR_OF_DAY, nextMinute / 60)
-        }
 
         val pendingIntent = PendingIntent.getService(
             this,
