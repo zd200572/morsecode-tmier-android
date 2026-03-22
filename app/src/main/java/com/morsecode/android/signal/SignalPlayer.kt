@@ -60,12 +60,56 @@ class SignalPlayer(context: Context) {
                     if (signal.type == SignalType.ON) {
                         onProgress?.invoke(signalIdx, signals.count { it.type == SignalType.ON })
                         signalIdx++
-                        // 同时启动所有已启用的输出
                         if (enableVibration) vibrationOutput.vibrate(signal.durationMs)
                         if (enableSound) soundOutput.play(signal.durationMs)
                         if (enableFlashlight) flashlightOutput.turnOn()
                     } else {
-                        // OFF 信号
+                        if (enableFlashlight) flashlightOutput.turnOff()
+                    }
+
+                    delay(signal.durationMs)
+                }
+            } finally {
+                stopOutputs()
+                isPlaying = false
+                onComplete?.invoke()
+            }
+        }
+    }
+
+    /**
+     * 依次播报多个时区的 Morse 信号
+     * 每个时区之间加较长间隔
+     */
+    fun playMultipleTimezones(
+        timeList: List<Pair<Int, Int>>,
+        scope: CoroutineScope
+    ) {
+        if (isPlaying) return
+        // 把每个时区的信号序列拼在一起，时区间加长间隔
+        val allSignals = mutableListOf<MorseCodeEngine.Signal>()
+        timeList.forEachIndexed { idx, (hour, minute) ->
+            allSignals.addAll(MorseCodeEngine.generateSignalSequence(hour, minute))
+            if (idx < timeList.size - 1) {
+                allSignals.add(MorseCodeEngine.Signal(SignalType.OFF, MorseCodeEngine.DATE_TIME_GAP))
+            }
+        }
+
+        isPlaying = true
+        playJob = scope.launch(Dispatchers.Main) {
+            try {
+                var signalIdx = 0
+                val totalOn = allSignals.count { it.type == SignalType.ON }
+                for (signal in allSignals) {
+                    if (!isActive) break
+
+                    if (signal.type == SignalType.ON) {
+                        onProgress?.invoke(signalIdx, totalOn)
+                        signalIdx++
+                        if (enableVibration) vibrationOutput.vibrate(signal.durationMs)
+                        if (enableSound) soundOutput.play(signal.durationMs)
+                        if (enableFlashlight) flashlightOutput.turnOn()
+                    } else {
                         if (enableFlashlight) flashlightOutput.turnOff()
                     }
 

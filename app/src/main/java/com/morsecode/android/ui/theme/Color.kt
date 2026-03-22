@@ -28,3 +28,9 @@ val MorseDashInactive = Color(0xFF3A3A3A)
 // 状态色
 val SuccessGreen = Color(0xFF4CAF50)
 val ActiveBlue = Color(0xFF42A5F5)
+
+// 时区标识色
+val TimezoneUtc = Color(0xFF64B5F6)       // 淡蓝
+val TimezoneMoscow = Color(0xFFEF5350)    // 红色
+val TimezoneBeijing = Color(0xFFFFCA28)   // 金色
+val TimezoneNewYork = Color(0xFF66BB6A)   // 绿色

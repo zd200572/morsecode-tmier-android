@@ -104,7 +104,40 @@ class MorseSchedulerService : Service() {
             player.enableVibration = prefs.getBoolean(KEY_VIBRATION, true)
             player.enableSound = prefs.getBoolean(KEY_SOUND, true)
             player.enableFlashlight = prefs.getBoolean(KEY_FLASHLIGHT, false)
-            player.play(year, month, day, hour, minute, includeDate, serviceScope)
+
+            val modeOrd = prefs.getInt("broadcast_mode",
+                com.morsecode.android.ui.BroadcastMode.LOCAL.ordinal)
+            val mode = com.morsecode.android.ui.BroadcastMode.entries.getOrElse(modeOrd) {
+                com.morsecode.android.ui.BroadcastMode.LOCAL
+            }
+
+            when (mode) {
+                com.morsecode.android.ui.BroadcastMode.LOCAL -> {
+                    player.play(year, month, day, hour, minute, includeDate, serviceScope)
+                }
+                com.morsecode.android.ui.BroadcastMode.SINGLE -> {
+                    val tzIndex = prefs.getInt("selected_timezone", 0)
+                    val tzList = com.morsecode.android.ui.MorseViewModel.TIMEZONE_LIST
+                    val tz = tzList.getOrElse(tzIndex) { tzList[0] }
+                    val tzCal = Calendar.getInstance(
+                        java.util.TimeZone.getTimeZone(tz.zoneId)
+                    )
+                    player.play(
+                        tzCal.get(Calendar.HOUR_OF_DAY),
+                        tzCal.get(Calendar.MINUTE),
+                        serviceScope
+                    )
+                }
+                com.morsecode.android.ui.BroadcastMode.ALL_SEQUENTIAL -> {
+                    val timeList = com.morsecode.android.ui.MorseViewModel.TIMEZONE_LIST.map { tz ->
+                        val tzCal = Calendar.getInstance(
+                            java.util.TimeZone.getTimeZone(tz.zoneId)
+                        )
+                        tzCal.get(Calendar.HOUR_OF_DAY) to tzCal.get(Calendar.MINUTE)
+                    }
+                    player.playMultipleTimezones(timeList, serviceScope)
+                }
+            }
         }
     }
 

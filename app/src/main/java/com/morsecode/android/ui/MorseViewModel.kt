@@ -14,6 +14,28 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import java.util.TimeZone
+
+/** 播报模式 */
+enum class BroadcastMode {
+    /** 依次播报所有时区 */
+    ALL_SEQUENTIAL,
+    /** 只播报选中的时区 */
+    SINGLE,
+    /** 播报本地时间（原有行为） */
+    LOCAL
+}
+
+/** 单个时区的显示数据 */
+data class TimezoneDisplay(
+    val name: String,
+    val zoneId: String,
+    val hour: Int = 0,
+    val minute: Int = 0,
+    val second: Int = 0,
+    val hourMorse: String = "",
+    val minuteMorse: String = ""
+)
 
 data class MorseUiState(
     val year: Int = 0,
@@ -31,12 +53,28 @@ data class MorseUiState(
     val enableVibration: Boolean = true,
     val enableSound: Boolean = true,
     val enableFlashlight: Boolean = false,
-    val includeDate: Boolean = false,  // 默认不播报日期
+    val includeDate: Boolean = false,
     val isScheduled: Boolean = false,
-    val scheduleInterval: Int = 60  // 15, 30, 60
+    val scheduleInterval: Int = 60,
+    // 多时区
+    val timezoneDisplays: List<TimezoneDisplay> = emptyList(),
+    val broadcastMode: BroadcastMode = BroadcastMode.LOCAL,
+    val selectedTimezoneIndex: Int = 0
 )
 
 class MorseViewModel(application: Application) : AndroidViewModel(application) {
+
+    companion object {
+        const val KEY_BROADCAST_MODE = "broadcast_mode"
+        const val KEY_SELECTED_TZ = "selected_timezone"
+
+        val TIMEZONE_LIST = listOf(
+            TimezoneDisplay("UTC", "UTC"),
+            TimezoneDisplay("莫斯科", "Europe/Moscow"),
+            TimezoneDisplay("北京", "Asia/Shanghai"),
+            TimezoneDisplay("纽约", "America/New_York")
+        )
+    }
 
     private val _uiState = MutableStateFlow(MorseUiState())
     val uiState: StateFlow<MorseUiState> = _uiState.asStateFlow()
@@ -48,13 +86,18 @@ class MorseViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         // 读取持久化的设置
+        val modeOrd = prefs.getInt(KEY_BROADCAST_MODE, BroadcastMode.LOCAL.ordinal)
+        val broadcastMode = BroadcastMode.entries.getOrElse(modeOrd) { BroadcastMode.LOCAL }
+
         _uiState.value = _uiState.value.copy(
             enableVibration = prefs.getBoolean(MorseSchedulerService.KEY_VIBRATION, true),
             enableSound = prefs.getBoolean(MorseSchedulerService.KEY_SOUND, true),
             enableFlashlight = prefs.getBoolean(MorseSchedulerService.KEY_FLASHLIGHT, false),
             includeDate = prefs.getBoolean(MorseSchedulerService.KEY_INCLUDE_DATE, false),
             isScheduled = prefs.getBoolean("is_scheduled", false),
-            scheduleInterval = prefs.getInt(MorseSchedulerService.KEY_INTERVAL, 60)
+            scheduleInterval = prefs.getInt(MorseSchedulerService.KEY_INTERVAL, 60),
+            broadcastMode = broadcastMode,
+            selectedTimezoneIndex = prefs.getInt(KEY_SELECTED_TZ, 0)
         )
 
         // 每秒更新时间
@@ -91,6 +134,16 @@ class MorseViewModel(application: Application) : AndroidViewModel(application) {
         val (hourMorse, minuteMorse) = MorseCodeEngine.encodeTime(hour, minute)
         val symbols = MorseCodeEngine.getDisplaySymbols(hour, minute)
 
+        // 计算各时区时间
+        val tzDisplays = TIMEZONE_LIST.map { tz ->
+            val tzCal = Calendar.getInstance(TimeZone.getTimeZone(tz.zoneId))
+            val tzH = tzCal.get(Calendar.HOUR_OF_DAY)
+            val tzM = tzCal.get(Calendar.MINUTE)
+            val tzS = tzCal.get(Calendar.SECOND)
+            val (hm, mm) = MorseCodeEngine.encodeTime(tzH, tzM)
+            tz.copy(hour = tzH, minute = tzM, second = tzS, hourMorse = hm, minuteMorse = mm)
+        }
+
         _uiState.value = _uiState.value.copy(
             year = year,
             month = month,
@@ -100,7 +153,8 @@ class MorseViewModel(application: Application) : AndroidViewModel(application) {
             second = second,
             hourMorse = hourMorse,
             minuteMorse = minuteMorse,
-            displaySymbols = symbols
+            displaySymbols = symbols,
+            timezoneDisplays = tzDisplays
         )
     }
 
@@ -116,12 +170,27 @@ class MorseViewModel(application: Application) : AndroidViewModel(application) {
             signalPlayer.enableVibration = state.enableVibration
             signalPlayer.enableSound = state.enableSound
             signalPlayer.enableFlashlight = state.enableFlashlight
-            signalPlayer.play(
-                state.year, state.month, state.day,
-                state.hour, state.minute,
-                state.includeDate,
-                viewModelScope
-            )
+
+            when (state.broadcastMode) {
+                BroadcastMode.LOCAL -> {
+                    signalPlayer.play(
+                        state.year, state.month, state.day,
+                        state.hour, state.minute,
+                        state.includeDate,
+                        viewModelScope
+                    )
+                }
+                BroadcastMode.SINGLE -> {
+                    val tz = state.timezoneDisplays.getOrNull(state.selectedTimezoneIndex)
+                    if (tz != null) {
+                        signalPlayer.play(tz.hour, tz.minute, viewModelScope)
+                    }
+                }
+                BroadcastMode.ALL_SEQUENTIAL -> {
+                    val timeList = state.timezoneDisplays.map { it.hour to it.minute }
+                    signalPlayer.playMultipleTimezones(timeList, viewModelScope)
+                }
+            }
             _uiState.value = _uiState.value.copy(isPlaying = true)
         }
     }
@@ -146,10 +215,19 @@ class MorseViewModel(application: Application) : AndroidViewModel(application) {
         prefs.edit().putBoolean(MorseSchedulerService.KEY_INCLUDE_DATE, enabled).apply()
     }
 
+    fun setBroadcastMode(mode: BroadcastMode) {
+        _uiState.value = _uiState.value.copy(broadcastMode = mode)
+        prefs.edit().putInt(KEY_BROADCAST_MODE, mode.ordinal).apply()
+    }
+
+    fun setSelectedTimezone(index: Int) {
+        _uiState.value = _uiState.value.copy(selectedTimezoneIndex = index)
+        prefs.edit().putInt(KEY_SELECTED_TZ, index).apply()
+    }
+
     fun setScheduleInterval(interval: Int) {
         _uiState.value = _uiState.value.copy(scheduleInterval = interval)
         prefs.edit().putInt(MorseSchedulerService.KEY_INTERVAL, interval).apply()
-        // 如果当前已开启定时，重新调度
         if (_uiState.value.isScheduled) {
             MorseSchedulerService.start(getApplication(), interval)
         }

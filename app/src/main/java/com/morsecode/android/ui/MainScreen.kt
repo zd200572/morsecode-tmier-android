@@ -5,14 +5,21 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.FlashlightOn
 import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.PlaylistPlay
+import androidx.compose.material.icons.rounded.GpsFixed
+import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -54,13 +61,18 @@ fun MainScreen(viewModel: MorseViewModel) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
                 .padding(top = 48.dp, bottom = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // === 顶部：时间显示 ===
             TimeDisplay(state, glowAlpha)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // === 多时区卡片 ===
+            TimezoneCardsRow(state, viewModel)
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -87,10 +99,12 @@ fun MainScreen(viewModel: MorseViewModel) {
             // === 播报设置 ===
             SettingsSection(state, viewModel)
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // === 播报按钮 ===
             PlayButton(state, viewModel)
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -128,6 +142,130 @@ private fun TimeDisplay(state: MorseUiState, glowAlpha: Float) {
         color = TextDim,
         modifier = Modifier.padding(top = 4.dp)
     )
+}
+
+// ===== 多时区卡片 =====
+
+private val TIMEZONE_COLORS = listOf(
+    TimezoneUtc,
+    TimezoneMoscow,
+    TimezoneBeijing,
+    TimezoneNewYork
+)
+
+@Composable
+private fun TimezoneCardsRow(state: MorseUiState, viewModel: MorseViewModel) {
+    val displays = state.timezoneDisplays
+    if (displays.isEmpty()) return
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        // 标题行
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(bottom = 8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Language,
+                contentDescription = "时区",
+                tint = TextDim,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "世界时钟",
+                style = MaterialTheme.typography.labelLarge,
+                color = TextDim
+            )
+        }
+
+        // 横向可滚动卡片
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+        ) {
+            displays.forEachIndexed { index, tz ->
+                val accentColor = TIMEZONE_COLORS.getOrElse(index) { Amber500 }
+                val isSelected = state.broadcastMode == BroadcastMode.SINGLE &&
+                        state.selectedTimezoneIndex == index
+
+                TimezoneCard(
+                    display = tz,
+                    accentColor = accentColor,
+                    isSelected = isSelected,
+                    onClick = {
+                        if (state.broadcastMode == BroadcastMode.SINGLE) {
+                            viewModel.setSelectedTimezone(index)
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimezoneCard(
+    display: TimezoneDisplay,
+    accentColor: Color,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) accentColor else Color.Transparent,
+        label = "tzBorder"
+    )
+
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = DarkCard,
+        modifier = Modifier
+            .width(100.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .border(1.5.dp, borderColor, RoundedCornerShape(14.dp))
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp)
+        ) {
+            // 时区名 + 色标
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .background(accentColor, CircleShape)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = display.name,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            // 时间
+            Text(
+                text = String.format("%02d:%02d", display.hour, display.minute),
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = accentColor
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            // Morse 码（缩略）
+            Text(
+                text = display.hourMorse.replace('.', '·').replace('-', '−'),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                color = TextDim,
+                maxLines = 1,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
 }
 
 @Composable
@@ -176,7 +314,6 @@ private fun MorseVisualization(state: MorseUiState) {
     val symbols = state.displaySymbols
     if (symbols.isEmpty()) return
 
-    // 按 group 分组显示（0,1 = 小时两位; 2,3 = 分钟两位）
     val hourSymbols = symbols.filter { it.groupIndex < 2 }
     val minuteSymbols = symbols.filter { it.groupIndex >= 2 }
 
@@ -185,7 +322,6 @@ private fun MorseVisualization(state: MorseUiState) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         MorseSymbolRow(hourSymbols, state.currentPlayingIndex, state.isPlaying)
-        // 分隔线
         Box(
             modifier = Modifier
                 .width(40.dp)
@@ -209,7 +345,6 @@ private fun MorseSymbolRow(
     ) {
         var prevGroup = -1
         symbols.forEach { symbol ->
-            // 组间加间隔
             if (prevGroup != -1 && symbol.groupIndex != prevGroup) {
                 Spacer(modifier = Modifier.width(16.dp))
             }
@@ -225,7 +360,6 @@ private fun MorseSymbolRow(
             )
 
             if (symbol.isDash) {
-                // 长横
                 Box(
                     modifier = Modifier
                         .padding(horizontal = 2.dp)
@@ -234,7 +368,6 @@ private fun MorseSymbolRow(
                         .background(color, RoundedCornerShape(4.dp))
                 )
             } else {
-                // 圆点
                 Box(
                     modifier = Modifier
                         .padding(horizontal = 2.dp)
@@ -347,7 +480,6 @@ private fun ScheduleSection(state: MorseUiState, viewModel: MorseViewModel) {
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
-            // 间隔选择
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -450,7 +582,104 @@ private fun SettingsSection(state: MorseUiState, viewModel: MorseViewModel) {
                     )
                 )
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Divider(color = DarkSurfaceVariant, thickness = 1.dp)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ===== 播报模式 =====
+            Text(
+                text = "播报模式",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextPrimary
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            val modes = listOf(
+                Triple(BroadcastMode.LOCAL, "当前时间", Icons.Rounded.GpsFixed),
+                Triple(BroadcastMode.ALL_SEQUENTIAL, "依次播报", Icons.Rounded.QueueMusic),
+                Triple(BroadcastMode.SINGLE, "单项播报", Icons.Rounded.PlaylistPlay)
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                modes.forEach { (mode, label, icon) ->
+                    BroadcastModeChip(
+                        icon = icon,
+                        label = label,
+                        isSelected = state.broadcastMode == mode,
+                        onClick = { viewModel.setBroadcastMode(mode) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            // 单项播报模式下显示时区选择提示
+            if (state.broadcastMode == BroadcastMode.SINGLE) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "点击上方时区卡片选择要播报的时区",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Amber500.copy(alpha = 0.7f)
+                )
+            }
+            if (state.broadcastMode == BroadcastMode.ALL_SEQUENTIAL) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "将按 UTC → 莫斯科 → 北京 → 纽约 顺序播报",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Amber500.copy(alpha = 0.7f)
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun BroadcastModeChip(
+    icon: ImageVector,
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val bgColor by animateColorAsState(
+        targetValue = if (isSelected) Amber500.copy(alpha = 0.15f) else DarkSurfaceVariant,
+        label = "modeBg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) Amber500.copy(alpha = 0.5f) else Color.Transparent,
+        label = "modeBorder"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (isSelected) Amber500 else TextDim,
+        label = "modeContent"
+    )
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .background(bgColor, RoundedCornerShape(12.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(12.dp))
+            .padding(vertical = 10.dp, horizontal = 4.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = contentColor,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = contentColor,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
@@ -458,7 +687,6 @@ private fun SettingsSection(state: MorseUiState, viewModel: MorseViewModel) {
 private fun PlayButton(state: MorseUiState, viewModel: MorseViewModel) {
     val isPlaying = state.isPlaying
 
-    // 播放时按钮脉冲动画
     val pulseTransition = rememberInfiniteTransition(label = "pulse")
     val pulseScale by pulseTransition.animateFloat(
         initialValue = 1f,
@@ -480,7 +708,6 @@ private fun PlayButton(state: MorseUiState, viewModel: MorseViewModel) {
             .fillMaxWidth()
             .padding(horizontal = 32.dp)
     ) {
-        // 按钮光晕
         if (isPlaying) {
             Box(
                 modifier = Modifier
