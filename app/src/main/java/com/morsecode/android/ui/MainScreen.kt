@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.GpsFixed
 import androidx.compose.material.icons.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,7 +36,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.morsecode.android.morse.MorseCodeEngine
 import com.morsecode.android.ui.theme.*
+import kotlin.math.roundToInt
 
 @Composable
 fun MainScreen(viewModel: MorseViewModel) {
@@ -582,6 +585,65 @@ private fun SettingsSection(state: MorseUiState, viewModel: MorseViewModel) {
                     )
                 )
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Divider(color = DarkSurfaceVariant, thickness = 1.dp)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ===== 播报速度 =====
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Speed,
+                    contentDescription = "速度",
+                    tint = Amber500,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "播报速度",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TextPrimary
+                    )
+                    val dotMs = 1200 / state.wpm
+                    Text(
+                        text = "${state.wpm} WPM · 点时长 ${dotMs}ms",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextDim
+                    )
+                }
+                // WPM 数值标签
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Amber500.copy(alpha = 0.15f),
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    Text(
+                        text = "${state.wpm}",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = Amber500,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Slider(
+                value = state.wpm.toFloat(),
+                onValueChange = { viewModel.setWpm(it.roundToInt()) },
+                valueRange = MorseCodeEngine.MIN_WPM.toFloat()..MorseCodeEngine.MAX_WPM.toFloat(),
+                steps = MorseCodeEngine.MAX_WPM - MorseCodeEngine.MIN_WPM - 1,
+                colors = SliderDefaults.colors(
+                    thumbColor = Amber500,
+                    activeTrackColor = Amber500,
+                    inactiveTrackColor = DarkSurfaceVariant
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
             Divider(color = DarkSurfaceVariant, thickness = 1.dp)

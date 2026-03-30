@@ -99,6 +99,10 @@ class MorseSchedulerService : Service() {
         val hour = cal.get(Calendar.HOUR_OF_DAY)
         val minute = cal.get(Calendar.MINUTE)
         val includeDate = prefs.getBoolean(KEY_INCLUDE_DATE, false)
+        val wpm = prefs.getInt(
+            com.morsecode.android.morse.MorseCodeEngine.KEY_WPM,
+            com.morsecode.android.morse.MorseCodeEngine.DEFAULT_WPM
+        )
 
         signalPlayer?.let { player ->
             player.enableVibration = prefs.getBoolean(KEY_VIBRATION, true)
@@ -113,7 +117,7 @@ class MorseSchedulerService : Service() {
 
             when (mode) {
                 com.morsecode.android.ui.BroadcastMode.LOCAL -> {
-                    player.play(year, month, day, hour, minute, includeDate, serviceScope)
+                    player.play(year, month, day, hour, minute, includeDate, serviceScope, wpm)
                 }
                 com.morsecode.android.ui.BroadcastMode.SINGLE -> {
                     val tzIndex = prefs.getInt("selected_timezone", 0)
@@ -125,7 +129,8 @@ class MorseSchedulerService : Service() {
                     player.play(
                         tzCal.get(Calendar.HOUR_OF_DAY),
                         tzCal.get(Calendar.MINUTE),
-                        serviceScope
+                        serviceScope,
+                        wpm
                     )
                 }
                 com.morsecode.android.ui.BroadcastMode.ALL_SEQUENTIAL -> {
@@ -135,7 +140,7 @@ class MorseSchedulerService : Service() {
                         )
                         tzCal.get(Calendar.HOUR_OF_DAY) to tzCal.get(Calendar.MINUTE)
                     }
-                    player.playMultipleTimezones(timeList, serviceScope)
+                    player.playMultipleTimezones(timeList, serviceScope, wpm)
                 }
             }
         }

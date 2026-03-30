@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/widget_background">
+
+    <!-- 标题栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Morse Time"
+            android:textColor="#FFFFC107"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <!-- 播放按钮 -->
+        <ImageView
+            android:id="@+id/widget_play_button"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@android:drawable/ic_media_play"
+            android:contentDescription="播报"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="#FFFFC107" />
+    </LinearLayout>
+
+    <!-- 本地时间 -->
+    <TextView
+        android:id="@+id/widget_local_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="本地 00:00"
+        android:textColor="#FFFFFFFF"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="6dp" />
+
+    <!-- 多时区网格 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:baselineAligned="false">
+
+        <!-- UTC -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/widget_utc_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="UTC"
+                android:textColor="#80FFC107"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/widget_utc_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00"
+                android:textColor="#B0FFFFFF"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif-medium" />
+        </LinearLayout>
+
+        <!-- 莫斯科 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/widget_moscow_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="莫斯科"
+                android:textColor="#80FFC107"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/widget_moscow_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00"
+                android:textColor="#B0FFFFFF"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif-medium" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp"
+        android:baselineAligned="false">
+
+        <!-- 北京 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/widget_beijing_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="北京"
+                android:textColor="#80FFC107"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/widget_beijing_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00"
+                android:textColor="#B0FFFFFF"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif-medium" />
+        </LinearLayout>
+
+        <!-- 纽约 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/widget_ny_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="纽约"
+                android:textColor="#80FFC107"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/widget_ny_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00"
+                android:textColor="#B0FFFFFF"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif-medium" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Morse 码显示 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp"
+        android:gravity="center">
+
+        <TextView
+            android:id="@+id/widget_morse_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="M  "
+            android:textColor="#60FFC107"
+            android:textSize="10sp"
+            android:fontFamily="monospace" />
+
+        <TextView
+            android:id="@+id/widget_morse"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="····− −−−−·"
+            android:textColor="#80FFFFFF"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.1" />
+    </LinearLayout>
+
+</LinearLayout>

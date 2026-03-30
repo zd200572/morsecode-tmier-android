@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Morse 报时</string>
+    <string name="widget_description">显示当前时间的 Morse 电码</string>
 </resources>

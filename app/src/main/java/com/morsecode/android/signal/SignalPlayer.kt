@@ -31,8 +31,8 @@ class SignalPlayer(context: Context) {
     /**
      * 播放指定时间的 Morse 信号序列（仅时间）
      */
-    fun play(hour: Int, minute: Int, scope: CoroutineScope) {
-        play(0, 0, 0, hour, minute, false, scope)
+    fun play(hour: Int, minute: Int, scope: CoroutineScope, wpm: Int = MorseCodeEngine.DEFAULT_WPM) {
+        play(0, 0, 0, hour, minute, false, scope, wpm)
     }
 
     /**
@@ -43,11 +43,12 @@ class SignalPlayer(context: Context) {
         year: Int, month: Int, day: Int,
         hour: Int, minute: Int,
         includeDate: Boolean,
-        scope: CoroutineScope
+        scope: CoroutineScope,
+        wpm: Int = MorseCodeEngine.DEFAULT_WPM
     ) {
         if (isPlaying) return
         val signals = MorseCodeEngine.generateSignalSequence(
-            year, month, day, hour, minute, includeDate
+            year, month, day, hour, minute, includeDate, wpm
         )
         isPlaying = true
 
@@ -83,15 +84,17 @@ class SignalPlayer(context: Context) {
      */
     fun playMultipleTimezones(
         timeList: List<Pair<Int, Int>>,
-        scope: CoroutineScope
+        scope: CoroutineScope,
+        wpm: Int = MorseCodeEngine.DEFAULT_WPM
     ) {
         if (isPlaying) return
+        val timings = MorseCodeEngine.calculateTimings(wpm)
         // 把每个时区的信号序列拼在一起，时区间加长间隔
         val allSignals = mutableListOf<MorseCodeEngine.Signal>()
         timeList.forEachIndexed { idx, (hour, minute) ->
-            allSignals.addAll(MorseCodeEngine.generateSignalSequence(hour, minute))
+            allSignals.addAll(MorseCodeEngine.generateSignalSequence(hour, minute, wpm))
             if (idx < timeList.size - 1) {
-                allSignals.add(MorseCodeEngine.Signal(SignalType.OFF, MorseCodeEngine.DATE_TIME_GAP))
+                allSignals.add(MorseCodeEngine.Signal(SignalType.OFF, timings.dateTimeGap))
             }
         }
 

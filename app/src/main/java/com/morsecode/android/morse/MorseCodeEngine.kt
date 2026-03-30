@@ -12,6 +12,41 @@ object MorseCodeEngine {
     /** 单个信号单元 */
     data class Signal(val type: SignalType, val durationMs: Long)
 
+    /** Morse 时长参数 */
+    data class MorseTimings(
+        val dotDuration: Long,
+        val dashDuration: Long,
+        val symbolGap: Long,
+        val charGap: Long,
+        val groupGap: Long,
+        val dateTimeGap: Long
+    )
+
+    /** 默认速度 25 WPM */
+    const val DEFAULT_WPM = 25
+    const val MIN_WPM = 5
+    const val MAX_WPM = 40
+
+    /** SharedPreferences key */
+    const val KEY_WPM = "morse_wpm"
+
+    /**
+     * 根据 WPM 计算各时长参数
+     * 标准公式: dot = 1200 / WPM (ms)
+     */
+    fun calculateTimings(wpm: Int): MorseTimings {
+        val safeWpm = wpm.coerceIn(MIN_WPM, MAX_WPM)
+        val dot = 1200L / safeWpm
+        return MorseTimings(
+            dotDuration = dot,
+            dashDuration = dot * 3,
+            symbolGap = dot,
+            charGap = dot * 3,
+            groupGap = dot * 7,
+            dateTimeGap = dot * 10
+        )
+    }
+
     /** 数字 0-9 的 Morse 编码 */
     private val MORSE_TABLE = mapOf(
         '0' to "-----",
@@ -25,14 +60,6 @@ object MorseCodeEngine {
         '8' to "---..",
         '9' to "----."
     )
-
-    /** 时间参数 (ms) */
-    const val DOT_DURATION = 200L
-    const val DASH_DURATION = 600L
-    const val SYMBOL_GAP = 200L    // 符号间隔
-    const val CHAR_GAP = 600L      // 字符间隔
-    const val GROUP_GAP = 1200L    // 时/分 分隔
-    const val DATE_TIME_GAP = 2000L // 日期与时间分隔
 
     /**
      * 将时间编码为 Morse 字符串
@@ -83,8 +110,9 @@ object MorseCodeEngine {
     /**
      * 将时/分 Morse 编码生成信号序列
      */
-    fun generateSignalSequence(hour: Int, minute: Int): List<Signal> {
+    fun generateSignalSequence(hour: Int, minute: Int, wpm: Int = DEFAULT_WPM): List<Signal> {
         val (hourMorse, minuteMorse) = encodeTime(hour, minute)
+        val timings = calculateTimings(wpm)
         val signals = mutableListOf<Signal>()
 
         fun addMorseString(morse: String) {
@@ -92,20 +120,19 @@ object MorseCodeEngine {
             while (i < morse.length) {
                 when (morse[i]) {
                     '.' -> {
-                        signals.add(Signal(SignalType.ON, DOT_DURATION))
-                        // 下一个若还是符号，加符号间隔
+                        signals.add(Signal(SignalType.ON, timings.dotDuration))
                         if (i + 1 < morse.length && morse[i + 1] != ' ') {
-                            signals.add(Signal(SignalType.OFF, SYMBOL_GAP))
+                            signals.add(Signal(SignalType.OFF, timings.symbolGap))
                         }
                     }
                     '-' -> {
-                        signals.add(Signal(SignalType.ON, DASH_DURATION))
+                        signals.add(Signal(SignalType.ON, timings.dashDuration))
                         if (i + 1 < morse.length && morse[i + 1] != ' ') {
-                            signals.add(Signal(SignalType.OFF, SYMBOL_GAP))
+                            signals.add(Signal(SignalType.OFF, timings.symbolGap))
                         }
                     }
                     ' ' -> {
-                        signals.add(Signal(SignalType.OFF, CHAR_GAP))
+                        signals.add(Signal(SignalType.OFF, timings.charGap))
                     }
                 }
                 i++
@@ -113,7 +140,7 @@ object MorseCodeEngine {
         }
 
         addMorseString(hourMorse)
-        signals.add(Signal(SignalType.OFF, GROUP_GAP))
+        signals.add(Signal(SignalType.OFF, timings.groupGap))
         addMorseString(minuteMorse)
 
         return signals
@@ -126,8 +153,10 @@ object MorseCodeEngine {
     fun generateSignalSequence(
         year: Int, month: Int, day: Int,
         hour: Int, minute: Int,
-        includeDate: Boolean
+        includeDate: Boolean,
+        wpm: Int = DEFAULT_WPM
     ): List<Signal> {
+        val timings = calculateTimings(wpm)
         val signals = mutableListOf<Signal>()
 
         fun addMorseString(morse: String) {
@@ -135,19 +164,19 @@ object MorseCodeEngine {
             while (i < morse.length) {
                 when (morse[i]) {
                     '.' -> {
-                        signals.add(Signal(SignalType.ON, DOT_DURATION))
+                        signals.add(Signal(SignalType.ON, timings.dotDuration))
                         if (i + 1 < morse.length && morse[i + 1] != ' ') {
-                            signals.add(Signal(SignalType.OFF, SYMBOL_GAP))
+                            signals.add(Signal(SignalType.OFF, timings.symbolGap))
                         }
                     }
                     '-' -> {
-                        signals.add(Signal(SignalType.ON, DASH_DURATION))
+                        signals.add(Signal(SignalType.ON, timings.dashDuration))
                         if (i + 1 < morse.length && morse[i + 1] != ' ') {
-                            signals.add(Signal(SignalType.OFF, SYMBOL_GAP))
+                            signals.add(Signal(SignalType.OFF, timings.symbolGap))
                         }
                     }
                     ' ' -> {
-                        signals.add(Signal(SignalType.OFF, CHAR_GAP))
+                        signals.add(Signal(SignalType.OFF, timings.charGap))
                     }
                 }
                 i++
@@ -158,17 +187,17 @@ object MorseCodeEngine {
         if (includeDate) {
             val (yearMorse, monthMorse, dayMorse) = encodeDate(year, month, day)
             addMorseString(yearMorse)
-            signals.add(Signal(SignalType.OFF, GROUP_GAP))
+            signals.add(Signal(SignalType.OFF, timings.groupGap))
             addMorseString(monthMorse)
-            signals.add(Signal(SignalType.OFF, GROUP_GAP))
+            signals.add(Signal(SignalType.OFF, timings.groupGap))
             addMorseString(dayMorse)
-            signals.add(Signal(SignalType.OFF, DATE_TIME_GAP))
+            signals.add(Signal(SignalType.OFF, timings.dateTimeGap))
         }
 
         // 播报时间
         val (hourMorse, minuteMorse) = encodeTime(hour, minute)
         addMorseString(hourMorse)
-        signals.add(Signal(SignalType.OFF, GROUP_GAP))
+        signals.add(Signal(SignalType.OFF, timings.groupGap))
         addMorseString(minuteMorse)
 
         return signals

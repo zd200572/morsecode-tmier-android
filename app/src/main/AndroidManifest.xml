@@ -49,6 +49,19 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
+        <receiver
+            android:name=".widget.MorseWidgetProvider"
+            android:exported="true"
+            android:label="Morse 报时">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.morsecode.android.widget.PLAY_MORSE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/morse_widget_info" />
+        </receiver>
     </application>
 
 </manifest>

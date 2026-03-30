@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.morsecode.android.morse.MorseCodeEngine
 import com.morsecode.android.service.MorseSchedulerService
 import com.morsecode.android.signal.SignalPlayer
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,6 +57,7 @@ data class MorseUiState(
     val includeDate: Boolean = false,
     val isScheduled: Boolean = false,
     val scheduleInterval: Int = 60,
+    val wpm: Int = MorseCodeEngine.DEFAULT_WPM,
     // 多时区
     val timezoneDisplays: List<TimezoneDisplay> = emptyList(),
     val broadcastMode: BroadcastMode = BroadcastMode.LOCAL,
@@ -96,6 +98,7 @@ class MorseViewModel(application: Application) : AndroidViewModel(application) {
             includeDate = prefs.getBoolean(MorseSchedulerService.KEY_INCLUDE_DATE, false),
             isScheduled = prefs.getBoolean("is_scheduled", false),
             scheduleInterval = prefs.getInt(MorseSchedulerService.KEY_INTERVAL, 60),
+            wpm = prefs.getInt(MorseCodeEngine.KEY_WPM, MorseCodeEngine.DEFAULT_WPM),
             broadcastMode = broadcastMode,
             selectedTimezoneIndex = prefs.getInt(KEY_SELECTED_TZ, 0)
         )
@@ -177,18 +180,19 @@ class MorseViewModel(application: Application) : AndroidViewModel(application) {
                         state.year, state.month, state.day,
                         state.hour, state.minute,
                         state.includeDate,
-                        viewModelScope
+                        viewModelScope,
+                        state.wpm
                     )
                 }
                 BroadcastMode.SINGLE -> {
                     val tz = state.timezoneDisplays.getOrNull(state.selectedTimezoneIndex)
                     if (tz != null) {
-                        signalPlayer.play(tz.hour, tz.minute, viewModelScope)
+                        signalPlayer.play(tz.hour, tz.minute, viewModelScope, state.wpm)
                     }
                 }
                 BroadcastMode.ALL_SEQUENTIAL -> {
                     val timeList = state.timezoneDisplays.map { it.hour to it.minute }
-                    signalPlayer.playMultipleTimezones(timeList, viewModelScope)
+                    signalPlayer.playMultipleTimezones(timeList, viewModelScope, state.wpm)
                 }
             }
             _uiState.value = _uiState.value.copy(isPlaying = true)
@@ -223,6 +227,12 @@ class MorseViewModel(application: Application) : AndroidViewModel(application) {
     fun setSelectedTimezone(index: Int) {
         _uiState.value = _uiState.value.copy(selectedTimezoneIndex = index)
         prefs.edit().putInt(KEY_SELECTED_TZ, index).apply()
+    }
+
+    fun setWpm(wpm: Int) {
+        val safeWpm = wpm.coerceIn(MorseCodeEngine.MIN_WPM, MorseCodeEngine.MAX_WPM)
+        _uiState.value = _uiState.value.copy(wpm = safeWpm)
+        prefs.edit().putInt(MorseCodeEngine.KEY_WPM, safeWpm).apply()
     }
 
     fun setScheduleInterval(interval: Int) {
